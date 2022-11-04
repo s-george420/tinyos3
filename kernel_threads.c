@@ -8,6 +8,10 @@
   */
 Tid_t sys_CreateThread(Task task, int argl, void* args)
 {
+  PCB* pcb = CURPROC;
+
+  TCB* tcb = spawn_thread(pcb, task); //task?
+  
 	return NOTHREAD;
 }
 
