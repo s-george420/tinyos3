@@ -30,7 +30,7 @@ Pid_t get_pid(PCB* pcb)
 }
 
 /* Initialize a PTCB */
-static inline void initialize_PTCB(PTCB* ptcb)
+void initialize_PTCB(PTCB* ptcb)
 {
 
   ptcb->argl = 0;
@@ -144,6 +144,20 @@ void start_main_thread()
 }
 
 
+//creating process threads
+void start_thread()
+{
+  int exitval;
+
+  Task call = cur_thread()->ptcb->task;
+  int argl = cur_thread()->ptcb->argl;
+  void* args = cur_thread()->ptcb->args;
+
+  exitval = call(argl,args);
+  ThreadExit(exitval);
+}
+
+
 /*
 	System call to create a new process.
  */
@@ -197,8 +211,24 @@ Pid_t sys_Exec(Task call, int argl, void* args)
     the initialization of the PCB.
    */
   if(call != NULL) {
-    newproc->main_thread = spawn_thread(newproc, start_main_thread);
-    wakeup(newproc->main_thread);
+    //newproc->main_thread = spawn_thread(newproc, start_main_thread);
+
+    TCB* main_thread = spawn_thread(newproc, start_main_thread);
+
+    PTCB* ptcb = xmalloc(sizeof(PTCB));
+    //Initialize PTCB
+    initialize_PTCB(ptcb);
+    ptcb->argl = argl;
+    ptcb->args = args;
+    ptcb->task = call;
+    //make needed connections with PCB and TCB
+    ptcb->tcb = main_thread;
+    main_thread->ptcb = ptcb;
+    main_thread->owner_pcb = newproc;   
+    rlist_push_back(&newproc->ptcb_list, &ptcb->ptcb_list_node);
+
+    wakeup(main_thread);
+    //wakeup(newproc->main_thread);
   }
 
 

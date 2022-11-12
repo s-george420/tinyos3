@@ -995,12 +995,12 @@ BOOT_TEST(test_join_illegal_tid_gives_error,
 	int* illegal_ptr = (int*) -1;
 
 	ASSERT(ThreadJoin(NOTHREAD, illegal_ptr)==-1);
-
 	/* Test with random numbers. Since we only have one thread, any call is an illegal call. */
 	for(int i=0; i<100; i++) {
 		Tid_t random_tid = lrand48();
 		ASSERT(ThreadJoin(random_tid, illegal_ptr)==-1);
 	}
+	printf("\nbghke\n");
 
 	/* In addition, we cannot join ourselves ! */
 	ASSERT(ThreadJoin(ThreadSelf(), illegal_ptr)==-1);
@@ -1044,7 +1044,6 @@ BOOT_TEST(test_create_join_thread,
 	create_join_thread_flag = 0;
 
 	Tid_t t = CreateThread(create_join_thread_task, sizeof(create_join_thread_flag), &create_join_thread_flag);
-
 	/* Success in creating thread */
 	ASSERT(t!=NOTHREAD);
 	int exitval;
