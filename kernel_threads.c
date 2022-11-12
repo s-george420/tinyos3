@@ -9,33 +9,7 @@
   */
 Tid_t sys_CreateThread(Task task, int argl, void* args)
 {
-  PCB* pcb = CURPROC;
-  
-  
-  //Initialize and return a new TCB
-  //TCB* tcb; //task?
-  TCB* tcb = spawn_thread(pcb, start_thread);
-
-  //Acquire a PTCB
-  //allocate space
-  PTCB* ptcb = xmalloc(sizeof(PTCB));
-  //Initialize PTCB
-  initialize_PTCB(ptcb);
-  ptcb->argl = argl;
-  ptcb->args = args;
-  ptcb->task = task;
-  //make needed connections with PCB and TCB
-  ptcb->tcb = tcb;
-  tcb->ptcb = ptcb;
-  tcb->owner_pcb = pcb;   
-  rlist_push_back(&pcb->ptcb_list, &ptcb->ptcb_list_node);
-  /*if(task!=NULL){
-    tcb = spawn_thread(pcb, start_thread);
-  }*/
-  
-  //Wake up TCB
-  wakeup(tcb);
-	return (Tid_t) ptcb;
+	return NOTHREAD;
 }
 
 /**
