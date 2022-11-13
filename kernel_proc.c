@@ -29,6 +29,22 @@ Pid_t get_pid(PCB* pcb)
   return pcb==NULL ? NOPROC : pcb-PT;
 }
 
+/* Initialize a PTCB */
+void initialize_PTCB(PTCB* ptcb)
+{
+
+  ptcb->argl = 0;
+  ptcb->args = NULL;
+  ptcb->refcount = 0;
+  ptcb->detached = 0;
+  ptcb->exited = 0;
+  ptcb->exitval = 0;
+  ptcb->tcb = NULL;
+  ptcb->task = NULL;
+  rlnode_init(& ptcb->ptcb_list_node, ptcb);
+  ptcb->exit_cv = COND_INIT;
+}
+
 /* Initialize a PCB */
 static inline void initialize_PCB(PCB* pcb)
 {
@@ -44,6 +60,9 @@ static inline void initialize_PCB(PCB* pcb)
   rlnode_init(& pcb->children_node, pcb);
   rlnode_init(& pcb->exited_node, pcb);
   pcb->child_exit = COND_INIT;
+
+  rlnode_init(& pcb->ptcb_list, pcb);
+  pcb->thread_count = 0;
 }
 
 
@@ -393,4 +412,3 @@ Fid_t sys_OpenInfo()
 {
 	return NOFILE;
 }
-
