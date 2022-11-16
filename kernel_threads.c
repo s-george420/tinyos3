@@ -55,12 +55,25 @@ int sys_ThreadJoin(Tid_t tid, int* exitval)
     return -1;
   }
 
-  if (tid == ThreadSelf()) {
+  PTCB* ptcb = (PTCB*)tid;
+
+  //check ptcb detached
+  
+  //tid not in curproc
+  if (rlist_find(& CURPROC->ptcb_list, ptcb, NULL)==NULL) {
+    return -1;
+  }
+  //can't join self
+  if (tid == sys_ThreadSelf()) {
+    return -1;
+  }
+  //can't join if detached
+  if(ptcb->detached == 1) {
     return -1;
   }
 
-
-
+      rlist_push_front(& CURPROC->ptcb_list, ptcb);
+      kernel_broadcast(exitval);
 	return 0;
 }
 
@@ -69,7 +82,20 @@ int sys_ThreadJoin(Tid_t tid, int* exitval)
   */
 int sys_ThreadDetach(Tid_t tid)
 {
-	return -1;
+
+   if(tid == NOTHREAD){
+    return -1;
+  }
+
+  PTCB* ptcb = (PTCB*)tid;
+  //tid not in curproc
+  if (rlist_find(& CURPROC->ptcb_list, ptcb, NULL)==NULL) {
+    return -1;
+  }
+
+  ptcb->detached = 1;
+
+	return 0;
 }
 
 /**
