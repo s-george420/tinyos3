@@ -1003,6 +1003,7 @@ BOOT_TEST(test_join_illegal_tid_gives_error,
 
 	/* In addition, we cannot join ourselves ! */
 	ASSERT(ThreadJoin(ThreadSelf(), illegal_ptr)==-1);
+
 	return 0;
 }
 
@@ -1047,6 +1048,17 @@ BOOT_TEST(test_create_join_thread,
 	int exitval;
 	
 	
+	/* Join should succeed */
+	ASSERT(ThreadJoin(t, &exitval)==0);
+
+	/* Exit status should be correct */
+	ASSERT(exitval==2);
+
+	/* Shared variable should be updates */
+	ASSERT(create_join_thread_flag==1);
+
+	/* A second Join should fail! */
+	ASSERT(ThreadJoin(t, NULL)==-1);
 
 
 	return 0;
