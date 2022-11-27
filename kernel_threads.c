@@ -90,6 +90,7 @@ int sys_ThreadJoin(Tid_t tid, int* exitval)
   }
 
   if(ptcb->refcount==0) {
+    rlist_remove(&ptcb->ptcb_list_node);
     free(ptcb);
   }
 	return 0;
