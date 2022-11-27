@@ -97,6 +97,8 @@ Mutex active_threads_spinlock = MUTEX_INIT;
 //#define MMAPPED_THREAD_MEM
 #ifdef MMAPPED_THREAD_MEM
 
+
+
 /*
   Use mmap to allocate a thread. A more detailed implementation can allocate a
   "sentinel page", and change access to PROT_NONE, so that a stack overflow
@@ -149,7 +151,7 @@ static void thread_start()
 /*
   Initialize and return a new TCB
 */
-
+#define PRIORITY_QUEUES 30
 TCB* spawn_thread(PCB* pcb, void (*func)())
 {
 	/* The allocated thread size must be a multiple of page size */
@@ -159,6 +161,7 @@ TCB* spawn_thread(PCB* pcb, void (*func)())
 	tcb->owner_pcb = pcb;
 
 	/* Initialize the other attributes */
+	tcb->priority = PRIORITY_QUEUES-1;
 	tcb->type = NORMAL_THREAD;
 	tcb->state = INIT;
 	tcb->phase = CTX_CLEAN;
@@ -224,8 +227,9 @@ void release_TCB(TCB* tcb)
 
   Both of these structures are protected by @c sched_spinlock.
 */
-
-rlnode SCHED; /* The scheduler queue */
+#define N 7000
+int yieldCounter;	
+rlnode SCHED[PRIORITY_QUEUES]; /* The scheduler queue */
 rlnode TIMEOUT_LIST; /* The list of threads with a timeout */
 Mutex sched_spinlock = MUTEX_INIT; /* spinlock for scheduler queue */
 
@@ -268,7 +272,7 @@ static void sched_register_timeout(TCB* tcb, TimerDuration timeout)
 static void sched_queue_add(TCB* tcb)
 {
 	/* Insert at the end of the scheduling list */
-	rlist_push_back(&SCHED, &tcb->sched_node);
+	rlist_push_back(&SCHED[tcb->priority], &tcb->sched_node);
 
 	/* Restart possibly halted cores */
 	cpu_core_restart_one();
@@ -327,9 +331,23 @@ static void sched_wakeup_expired_timeouts()
 static TCB* sched_queue_select(TCB* current)
 {
 	/* Get the head of the SCHED list */
-	rlnode* sel = rlist_pop_front(&SCHED);
+	rlnode* sel = NULL;
 
-	TCB* next_thread = sel->tcb; /* When the list is empty, this is NULL */
+	for(int i=PRIORITY_QUEUES-1; i>=0; i--) {
+		if(!is_rlist_empty(&SCHED[i])){
+			sel = rlist_pop_front(&SCHED[i]);
+			break;
+		}
+	}
+
+
+	//TCB* next_thread = sel->tcb; /* When the list is empty, this is NULL */
+
+	TCB* next_thread = NULL;
+
+	if(sel!=NULL){
+		next_thread = sel->tcb; /* When the list is empty, this is NULL */
+	}
 
 	if (next_thread == NULL)
 		next_thread = (current->state == READY) ? current : &CURCORE.idle_thread;
@@ -403,8 +421,11 @@ void sleep_releasing(Thread_state state, Mutex* mx, enum SCHED_CAUSE cause,
 
 /* This function is the entry point to the scheduler's context switching */
 
+
+
 void yield(enum SCHED_CAUSE cause)
 {
+	yieldCounter ++;
 	/* Reset the timer, so that we are not interrupted by ALARM */
 	TimerDuration remaining = bios_cancel_timer();
 
@@ -414,6 +435,39 @@ void yield(enum SCHED_CAUSE cause)
 	TCB* current = CURTHREAD; /* Make a local copy of current process, for speed */
 
 	Mutex_Lock(&sched_spinlock);
+
+	
+	switch(cause) {
+		case SCHED_QUANTUM:
+			if(current->priority != 0){
+				current->priority --;
+			}
+			break;
+		case SCHED_IO:
+			if(current->priority != PRIORITY_QUEUES-1){
+				current->priority ++;
+			}
+			break;
+		case SCHED_MUTEX:
+			if(current->curr_cause == current->last_cause && current->priority != 0)  {
+				current->priority --;
+			}
+			break;
+		default:
+			current->priority = PRIORITY_QUEUES/2;
+			break;
+	}
+	//Boost
+	if(yieldCounter == N){
+		yieldCounter = 0;			//reset counter
+		for(int i=PRIORITY_QUEUES-2; i >= 0; i--) {
+			while(!is_rlist_empty(&SCHED[i])) {
+				rlnode* currTcb = rlist_pop_front(&SCHED[i]);
+				rlist_push_back(&SCHED[i+1],currTcb);
+				currTcb->tcb->priority++;
+			}
+		}
+	}
 
 	/* Update CURTHREAD state */
 	if (current->state == RUNNING)
@@ -521,7 +575,10 @@ static void idle_thread()
  */
 void initialize_scheduler()
 {
-	rlnode_init(&SCHED, NULL);
+	yieldCounter = 0;
+	for(int i=0; i<PRIORITY_QUEUES; i++){
+		rlnode_init(&SCHED[i], NULL);
+	}
 	rlnode_init(&TIMEOUT_LIST, NULL);
 }
 

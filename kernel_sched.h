@@ -103,6 +103,8 @@ typedef struct thread_control_block {
 
   PTCB* ptcb; 
 
+  int priority;
+
 	cpu_context_t context; /**< @brief The thread context */
 	Thread_type type; /**< @brief The type of thread */
 	Thread_state state; /**< @brief The state of the thread */
