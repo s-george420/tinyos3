@@ -151,7 +151,7 @@ static void thread_start()
 /*
   Initialize and return a new TCB
 */
-#define PRIORITY_QUEUES 30
+#define PRIORITY_QUEUES 50
 TCB* spawn_thread(PCB* pcb, void (*func)())
 {
 	/* The allocated thread size must be a multiple of page size */
@@ -161,7 +161,7 @@ TCB* spawn_thread(PCB* pcb, void (*func)())
 	tcb->owner_pcb = pcb;
 
 	/* Initialize the other attributes */
-	tcb->priority = PRIORITY_QUEUES-1;
+	tcb->priority = PRIORITY_QUEUES/2;
 	tcb->type = NORMAL_THREAD;
 	tcb->state = INIT;
 	tcb->phase = CTX_CLEAN;

@@ -57,9 +57,11 @@ Tid_t sys_ThreadSelf()
   */
 int sys_ThreadJoin(Tid_t tid, int* exitval)
 {
-  if(tid == NOTHREAD) {
-    return -1;
-  }
+ /*  rlist_find covers this
+
+    if(tid == NOTHREAD) {   
+      return -1;
+  }*/ 
 
   PTCB* ptcb = (PTCB*)tid;
   
@@ -72,7 +74,6 @@ int sys_ThreadJoin(Tid_t tid, int* exitval)
     return -1;
   }
   
-///////
 
   ptcb->refcount++;
 
