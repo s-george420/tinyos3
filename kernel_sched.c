@@ -151,7 +151,7 @@ static void thread_start()
 /*
   Initialize and return a new TCB
 */
-#define PRIORITY_QUEUES 50
+#define PRIORITY_QUEUES 50 	//Priority queues are needed for MLFQ
 TCB* spawn_thread(PCB* pcb, void (*func)())
 {
 	/* The allocated thread size must be a multiple of page size */
@@ -161,7 +161,7 @@ TCB* spawn_thread(PCB* pcb, void (*func)())
 	tcb->owner_pcb = pcb;
 
 	/* Initialize the other attributes */
-	tcb->priority = PRIORITY_QUEUES/2;
+	tcb->priority = PRIORITY_QUEUES/2;	//in the beginning every tcb gets placed in the middle priority queue
 	tcb->type = NORMAL_THREAD;
 	tcb->state = INIT;
 	tcb->phase = CTX_CLEAN;
@@ -227,8 +227,8 @@ void release_TCB(TCB* tcb)
 
   Both of these structures are protected by @c sched_spinlock.
 */
-#define N 7000
-int yieldCounter;	
+#define N 7000	//after N yields the scheduler will boost
+int yieldCounter;	//variable to count the yields
 rlnode SCHED[PRIORITY_QUEUES]; /* The scheduler queue */
 rlnode TIMEOUT_LIST; /* The list of threads with a timeout */
 Mutex sched_spinlock = MUTEX_INIT; /* spinlock for scheduler queue */
@@ -271,7 +271,7 @@ static void sched_register_timeout(TCB* tcb, TimerDuration timeout)
 */
 static void sched_queue_add(TCB* tcb)
 {
-	/* Insert at the end of the scheduling list */
+	/* Insert at the end of the equivalent scheduling list according to the priority of the tcb*/
 	rlist_push_back(&SCHED[tcb->priority], &tcb->sched_node);
 
 	/* Restart possibly halted cores */
@@ -332,7 +332,7 @@ static TCB* sched_queue_select(TCB* current)
 {
 	/* Get the head of the SCHED list */
 	rlnode* sel = NULL;
-
+	// pop the first available tcb starting from the highest priority queue
 	for(int i=PRIORITY_QUEUES-1; i>=0; i--) {
 		if(!is_rlist_empty(&SCHED[i])){
 			sel = rlist_pop_front(&SCHED[i]);
@@ -425,7 +425,9 @@ void sleep_releasing(Thread_state state, Mutex* mx, enum SCHED_CAUSE cause,
 
 void yield(enum SCHED_CAUSE cause)
 {
+	//icrease the counter of the yields
 	yieldCounter ++;
+	
 	/* Reset the timer, so that we are not interrupted by ALARM */
 	TimerDuration remaining = bios_cancel_timer();
 
@@ -436,30 +438,32 @@ void yield(enum SCHED_CAUSE cause)
 
 	Mutex_Lock(&sched_spinlock);
 
-	
+	//adjust the priority according to the SCHED_CAUSE
 	switch(cause) {
-		case SCHED_QUANTUM:
+
+		case SCHED_QUANTUM: //if the quantum has ended priority has to be decreased
 			if(current->priority != 0){
 				current->priority --;
 			}
 			break;
-		case SCHED_IO:
+		case SCHED_IO:	//If the thread is waiting for I/O priority has to be increased
 			if(current->priority != PRIORITY_QUEUES-1){
 				current->priority ++;
 			}
 			break;
-		case SCHED_MUTEX:
+		case SCHED_MUTEX:  //if Mutex_Lock yielded on contention priority has to be decreased
 			if(current->curr_cause == current->last_cause && current->priority != 0)  {
 				current->priority --;
 			}
 			break;
-		default:
+		default:	//By default a TCB gets places in the middle queue
 			current->priority = PRIORITY_QUEUES/2;
 			break;
 	}
 	//Boost
-	if(yieldCounter == N){
-		yieldCounter = 0;			//reset counter
+	if(yieldCounter == N) {
+		yieldCounter = 0;  //reset counter
+		// increase the priority of all possible TCBs and insert them at the back of the above priority queue
 		for(int i=PRIORITY_QUEUES-2; i >= 0; i--) {
 			while(!is_rlist_empty(&SCHED[i])) {
 				rlnode* currTcb = rlist_pop_front(&SCHED[i]);

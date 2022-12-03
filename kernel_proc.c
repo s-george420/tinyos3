@@ -41,8 +41,8 @@ void initialize_PTCB(PTCB* ptcb)
   ptcb->exitval = 0;
   ptcb->tcb = NULL;
   ptcb->task = NULL;
-  rlnode_init(& ptcb->ptcb_list_node, ptcb);
-  ptcb->exit_cv = COND_INIT;
+  rlnode_init(& ptcb->ptcb_list_node, ptcb); 
+  ptcb->exit_cv = COND_INIT; 
 }
 
 /* Initialize a PCB */
@@ -61,8 +61,8 @@ static inline void initialize_PCB(PCB* pcb)
   rlnode_init(& pcb->exited_node, pcb);
   pcb->child_exit = COND_INIT;
 
-  rlnode_init(& pcb->ptcb_list, pcb);
-  pcb->thread_count = 0;
+  rlnode_init(& pcb->ptcb_list, pcb);   //PCB contains now a list of ptcbs
+  pcb->thread_count = 0;                //each PCB has many threads now
 }
 
 
@@ -211,23 +211,23 @@ Pid_t sys_Exec(Task call, int argl, void* args)
     the initialization of the PCB.
    */
   if(call != NULL) {
-    //newproc->main_thread = spawn_thread(newproc, start_main_thread);
 
-    TCB* main_thread = spawn_thread(newproc, start_main_thread);
+   // TCB* main_thread = spawn_thread(newproc, start_main_thread); 
 
-    PTCB* ptcb = xmalloc(sizeof(PTCB));
+    newproc-> main_thread = spawn_thread(newproc, start_main_thread); //Create the new processes' main thread
+
+    PTCB* ptcb = xmalloc(sizeof(PTCB)); //Allocate space for a new PTCB that will be connected with the main thread
     //Initialize PTCB
     initialize_PTCB(ptcb);
     ptcb->argl = argl;
     ptcb->args = args;
     ptcb->task = call;
     //make needed connections with PCB and TCB
-    ptcb->tcb = main_thread;
-    main_thread->ptcb = ptcb;
-    rlist_push_back(&newproc->ptcb_list, &ptcb->ptcb_list_node);
-    newproc->thread_count++;
-    wakeup(main_thread);
-    //wakeup(newproc->main_thread);
+    ptcb->tcb = newproc->main_thread; //Connect the new PTCB with the TCB main thread
+    newproc->main_thread->ptcb = ptcb; //Connect the new PCB with the new PTCB
+    rlist_push_back(&newproc->ptcb_list, &ptcb->ptcb_list_node); //The PTCB is added to the new PCB's list of PTCBs
+    newproc->thread_count++; //Thread count has to be increased
+    wakeup(newproc->main_thread); //Finally wake up the thread
   }
 
 

@@ -17,25 +17,23 @@ Tid_t sys_CreateThread(Task task, int argl, void* args)
     return NOTHREAD;
   }
 
-  //Initialize and return a new TCB
-  //TCB* tcb; //task?
-  TCB* tcb = spawn_thread(pcb, start_thread);
+  
+  TCB* tcb = spawn_thread(pcb, start_thread); //Initialize and return a new TCB
 
   //Acquire a PTCB
-  //allocate space
-  PTCB* ptcb = xmalloc(sizeof(PTCB));
-  //Initialize PTCB
-  initialize_PTCB(ptcb);
+  PTCB* ptcb = xmalloc(sizeof(PTCB)); //allocate space
+  
+  
+  initialize_PTCB(ptcb); //Initialize PTCB
+  
   ptcb->argl = argl;
   ptcb->args = args;
   ptcb->task = task;
   //make needed connections with PCB and TCB
   ptcb->tcb = tcb;
   tcb->ptcb = ptcb;
-  rlist_push_back(&pcb->ptcb_list, &ptcb->ptcb_list_node);
-  /*if(task!=NULL){
-    tcb = spawn_thread(pcb, start_thread);
-  }*/
+  rlist_push_back(&pcb->ptcb_list, &ptcb->ptcb_list_node); //Add the new PTCB node to the end of the PCB's list of PTCBs
+
 
   pcb->thread_count++;
   
@@ -57,39 +55,39 @@ Tid_t sys_ThreadSelf()
   */
 int sys_ThreadJoin(Tid_t tid, int* exitval)
 {
- /*  rlist_find covers this
 
-    if(tid == NOTHREAD) {   
-      return -1;
-  }*/ 
+  PTCB* ptcb = (PTCB*)tid;  //get the ptcb of the given thread
 
-  PTCB* ptcb = (PTCB*)tid;
-  
-  //tid not in curproc
+  // Searches for this PTCB in the current process's list of PTCBs. If the PTCB isn't found, the function returns null
   if (rlist_find(& CURPROC->ptcb_list, ptcb, NULL)==NULL) {
     return -1;
   }
-  //can't join self
+ 
+  //Can't join self
   if (tid == sys_ThreadSelf()) {
     return -1;
   }
   
+  ptcb->refcount++; //refcount is increased since the given thread seems joinable
 
-  ptcb->refcount++;
-
+  //we need to wait until the given thread is exited or detached
   while(ptcb->exited == 0 && ptcb->detached == 0){
-    kernel_wait(& ptcb->exit_cv, SCHED_USER);
+    kernel_wait(& ptcb->exit_cv, SCHED_USER); 
   }
 
   ptcb->refcount--;
-  if(exitval!=NULL){
-    *exitval = ptcb->exitval;
-}
+
   //can't join if detached
   if(ptcb->detached == 1) {
     return -1;
   }
 
+  //The given PTCB's exitval is assigned to the pointed argument
+  if(exitval!=NULL){
+    *exitval = ptcb->exitval;
+  }
+  
+  //If the given PTCB is exited and has refcount = 0 then it is no longer needed 
   if(ptcb->refcount==0) {
     rlist_remove(&ptcb->ptcb_list_node);
     free(ptcb);
@@ -103,27 +101,23 @@ int sys_ThreadJoin(Tid_t tid, int* exitval)
 int sys_ThreadDetach(Tid_t tid)
 {
 
-  
-   if(tid == NOTHREAD){
-    return -1;
-  }
-
+  //get the PTCB of the given thread
   PTCB* ptcb = (PTCB*)tid;
 
- 
-
-  //tid not in curproc
+  //if given PTCB does not exist in the current process the function fails
   if (rlist_find(& CURPROC->ptcb_list, ptcb, NULL)==NULL) {
     return -1;
   }
 
-  //tid already exited
+  //PTCB might have exited, function fails here too
   if(ptcb->exited == 1){
     return -1;
   }
 
+  //now detached can be done
   ptcb->detached = 1;
 
+  //broadcast the exit_cv of the PTCB
   kernel_broadcast(&ptcb->exit_cv);
 
 	return 0;
@@ -137,7 +131,7 @@ void sys_ThreadExit(int exitval)
   PCB* curproc = CURPROC;
   PTCB* ptcb = (PTCB*) sys_ThreadSelf();
 
-  curproc->thread_count--;
+  curproc->thread_count--;  //thread count gets decreased since a thread exits
     /* 
     Here, we must check that we are not the init task. 
     If we are, we must wait until all child processes exit. 
@@ -199,9 +193,10 @@ void sys_ThreadExit(int exitval)
     /* Now, mark the process as exited. */
     curproc->pstate = ZOMBIE;
   }
+    
     ptcb->exited=1; 
     ptcb->exitval = exitval;
-    
+
     kernel_broadcast(&ptcb->exit_cv);
   
     /* Bye-bye cruel world */
