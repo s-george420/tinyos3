@@ -151,7 +151,6 @@ static void thread_start()
 /*
   Initialize and return a new TCB
 */
-#define PRIORITY_QUEUES 50 	//Priority queues are needed for MLFQ
 TCB* spawn_thread(PCB* pcb, void (*func)())
 {
 	/* The allocated thread size must be a multiple of page size */
@@ -227,7 +226,6 @@ void release_TCB(TCB* tcb)
 
   Both of these structures are protected by @c sched_spinlock.
 */
-#define N 7000	//after N yields the scheduler will boost
 int yieldCounter;	//variable to count the yields
 rlnode SCHED[PRIORITY_QUEUES]; /* The scheduler queue */
 rlnode TIMEOUT_LIST; /* The list of threads with a timeout */
@@ -426,7 +424,6 @@ void sleep_releasing(Thread_state state, Mutex* mx, enum SCHED_CAUSE cause,
 void yield(enum SCHED_CAUSE cause)
 {
 	//icrease the counter of the yields
-	yieldCounter ++;
 	
 	/* Reset the timer, so that we are not interrupted by ALARM */
 	TimerDuration remaining = bios_cancel_timer();
@@ -437,7 +434,7 @@ void yield(enum SCHED_CAUSE cause)
 	TCB* current = CURTHREAD; /* Make a local copy of current process, for speed */
 
 	Mutex_Lock(&sched_spinlock);
-
+	yieldCounter ++;
 	//adjust the priority according to the SCHED_CAUSE
 	switch(cause) {
 
@@ -464,9 +461,10 @@ void yield(enum SCHED_CAUSE cause)
 	if(yieldCounter == N) {
 		yieldCounter = 0;  //reset counter
 		// increase the priority of all possible TCBs and insert them at the back of the above priority queue
+		rlnode* currTcb;
 		for(int i=PRIORITY_QUEUES-2; i >= 0; i--) {
 			while(!is_rlist_empty(&SCHED[i])) {
-				rlnode* currTcb = rlist_pop_front(&SCHED[i]);
+				currTcb = rlist_pop_front(&SCHED[i]);
 				rlist_push_back(&SCHED[i+1],currTcb);
 				currTcb->tcb->priority++;
 			}

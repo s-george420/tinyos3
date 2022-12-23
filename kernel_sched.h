@@ -5,7 +5,8 @@
 
 #ifndef __KERNEL_SCHED_H
 #define __KERNEL_SCHED_H
-
+#define PRIORITY_QUEUES 50 	//Priority queues are needed for MLFQ
+#define N 7000	//after N yields the scheduler will boost
 /**
   @file kernel_sched.h
   @brief TinyOS kernel: The Scheduler API
