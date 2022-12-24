@@ -1477,10 +1477,12 @@ BOOT_TEST(test_pipe_close_reader,
 	pipe_t pipe;
 	ASSERT(Pipe(&pipe)==0);	
 	int rc;
-
+	printf("1\n");
 	for(int i=0;i<3;i++) {
 		ASSERT((rc=Write(pipe.write, "Hello world", 12))==12);
+		printf("2\n");
 	}
+	printf("3\n");
 	Close(pipe.read);
 	for(int i=0;i<3;i++) {
 		ASSERT((rc=Write(pipe.write, "Hello world", 12))==-1);
@@ -1495,19 +1497,23 @@ BOOT_TEST(test_pipe_close_writer,
 	pipe_t pipe;
 	ASSERT(Pipe(&pipe)==0);	
 	int rc;
-
 	for(int i=0;i<3;i++) {
 		ASSERT((rc=Write(pipe.write, "Hello world", 12))==12);
 	}
-
 	char buffer[12] = { [0] = 0 };
+	printf("1\n");
 	for(int i=0;i<3;i++) {
+		printf("2\n");
 		ASSERT((rc=Read(pipe.read, buffer, 12))==12);
+		printf("3\n");
 		ASSERT(strcmp(buffer, "Hello world")==0);
+		printf("4\n");
 	}
 	Close(pipe.write);
+	printf("5\n");
 	for(int i=0;i<3;i++) {
 		ASSERT((rc=Read(pipe.read, buffer, 12))==0);
+		printf("6\n");
 	}
 	return 0;
 }
