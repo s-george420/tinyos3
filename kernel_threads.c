@@ -193,7 +193,7 @@ void sys_ThreadExit(int exitval)
     /* Now, mark the process as exited. */
     curproc->pstate = ZOMBIE;
   }
-    
+    //these PTCB variables need to be adapted at the exit
     ptcb->exited=1; 
     ptcb->exitval = exitval;
 
