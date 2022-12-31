@@ -61,6 +61,5 @@ typedef struct socket_control_block {
   
 } SCB;
 
-SCB[MAX_PORT]
 
 #endif

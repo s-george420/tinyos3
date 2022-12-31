@@ -312,6 +312,7 @@ typedef struct resource_list_node {
     PCB* pcb; 
     TCB* tcb;
 	PTCB* ptcb;		//declare the new block
+	SCB* scb;		//declare the new block
     CCB* ccb;
     DCB* dcb;
     FCB* fcb;
