@@ -291,6 +291,8 @@ typedef struct device_control_block DCB;	/**< @brief Forward declaration */
 typedef struct file_control_block FCB;		/**< @brief Forward declaration */
 typedef struct process_thread_control_block PTCB; 	//new control block to implement multithread proccesses
 typedef struct socket_control_block SCB;			//new control block to implement sockets
+typedef struct connection_request c_req;			//
+
 /** @brief A convenience typedef */
 typedef struct resource_list_node * rlnode_ptr;
 
@@ -314,6 +316,7 @@ typedef struct resource_list_node {
     TCB* tcb;
 	PTCB* ptcb;		//declare the new block
 	SCB* scb;		//declare the new block
+	c_req* cr;		//declare new block
     CCB* ccb;
     DCB* dcb;
     FCB* fcb;

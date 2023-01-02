@@ -16,6 +16,9 @@ int sys_Listen(Fid_t sock);
 Fid_t sys_Accept(Fid_t lsock);
 int sys_Connect(Fid_t sock, port_t port, timeout_t timeout);
 int sys_ShutDown(Fid_t sock, shutdown_mode how);
+int socket_write(void* sock, char* buf, unsigned int size);
+int socket_read(void* sock, char* buf, unsigned int size);
+int socket_close(void* scb_p);
 
 typedef struct socket_control_block SCB;
 
