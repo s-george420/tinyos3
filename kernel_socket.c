@@ -83,7 +83,7 @@ Fid_t sys_Accept(Fid_t lsock)
 	
 	SCB* listening_socket = fcb->streamobj;
 
-	if(listening_socket->type != SOCKET_LISTENER || listening_socket->port == NOPORT) {
+	if(listening_socket == NULL || listening_socket->type != SOCKET_LISTENER || listening_socket->port == NOPORT) {
 		return -1;
 	}
 
@@ -105,6 +105,7 @@ Fid_t sys_Accept(Fid_t lsock)
 
 	//check if port is still valid because socket might have been closed
 	if(listening_socket->type == SOCKET_UNBOUND || PORT_MAP[listening_socket->port] == NULL) {
+		listening_socket->refcount--;
 		return NOFILE;
 	}
 
