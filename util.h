@@ -290,6 +290,7 @@ typedef struct core_control_block CCB;		/**< @brief Forward declaration */
 typedef struct device_control_block DCB;	/**< @brief Forward declaration */
 typedef struct file_control_block FCB;		/**< @brief Forward declaration */
 typedef struct process_thread_control_block PTCB; 	//new control block to implement multithread proccesses
+typedef struct socket_control_block SCB;			//new control block to implement sockets
 /** @brief A convenience typedef */
 typedef struct resource_list_node * rlnode_ptr;
 
