@@ -1785,12 +1785,17 @@ BOOT_TEST(test_listen_fails_on_initialized_socket,
 {
 	Fid_t lsock = Socket(100);
 	ASSERT(Listen(lsock)==0);	
+	printf("1\n");
 	ASSERT(Listen(lsock)==-1);	
+	printf("1\n");
 	Fid_t sock[2];
 	sock[0] = Socket(200);
 	connect_sockets(sock[0], lsock, sock+1, 100);
+	printf("1\n");
 	ASSERT(Listen(sock[0])==-1);
+	printf("1\n");
 	ASSERT(Listen(sock[1])==-1);
+	printf("1\n");
 	return 0;
 }
 

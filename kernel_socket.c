@@ -76,6 +76,7 @@ Fid_t sys_Accept(Fid_t lsock)
 	   - the available file ids for the process are exhausted
 	   - while waiting, the listening socket @c lsock was closed
 */
+
 	FCB* fcb = get_fcb(lsock);
 	if(fcb == NULL) {
 		return -1;
@@ -83,16 +84,8 @@ Fid_t sys_Accept(Fid_t lsock)
 	
 	SCB* listening_socket = fcb->streamobj;
 
-	if(listening_socket == NULL || listening_socket->type != SOCKET_LISTENER || listening_socket->port == NOPORT) {
+	if(listening_socket == NULL || listening_socket->type != SOCKET_LISTENER || listening_socket->port == NOPORT || PORT_MAP[listening_socket->port] == NULL) {
 		return -1;
-	}
-
-	FCB* p_fcb;
-	Fid_t p_fid;
-
-	//check exhausted
-	if(FCB_reserve(1,&p_fid,&p_fcb) == 0){
-		return NOFILE;
 	}
 
 	listening_socket->refcount ++;
@@ -106,16 +99,14 @@ Fid_t sys_Accept(Fid_t lsock)
 	//check if port is still valid because socket might have been closed
 	if(listening_socket->type == SOCKET_UNBOUND || PORT_MAP[listening_socket->port] == NULL) {
 		listening_socket->refcount--;
+		if (listening_socket->refcount == 0)
+		free(listening_socket);
 		return NOFILE;
 	}
 
 	FCB* server_fcb;
 	Fid_t server_fid;
 
-	//check exhausted
-	if(FCB_reserve(1,&p_fid,&p_fcb) == 0) {
-		return NOFILE;
-	}
 
 	rlnode* con_node = rlist_pop_front(&listening_socket->listener_s.queue);
   
@@ -155,7 +146,15 @@ Fid_t sys_Accept(Fid_t lsock)
 	pipe2->buffer_size = 0;
 
 	client_peer->type = SOCKET_PEER;
+	client_peer->peer_s.write_pipe = pipe1;
+	client_peer->peer_s.read_pipe = pipe2;
+	client_peer->peer_s.peer = server_peer;
+
 	server_peer->type = SOCKET_PEER;
+	server_peer->peer_s.write_pipe = pipe2;
+	server_peer->peer_s.read_pipe = pipe1;
+	server_peer->peer_s.peer = client_peer;
+
 
 	cr->admitted = 1;
 	kernel_signal(&(cr->connected_cv));
@@ -179,24 +178,26 @@ int sys_Connect(Fid_t sock, port_t port, timeout_t timeout)
 	*/
 	//the given port is illegal
 	if(port <= NOPORT || port > MAX_PORT) {
-		return -1;
+		return NOFILE;
 	}
 
 	//find fcb and then the socket from fcb;
 	FCB* fcb = get_fcb(sock);
 	if(fcb == NULL) {
-		return -1;
+		return NOFILE;
 	}
 
 	SCB* client_socket = fcb->streamobj;
 
+	
+	
 	if(client_socket == NULL || client_socket->type != SOCKET_UNBOUND) {
-		return -1;
+		return NOFILE;
 	}
 
 	SCB* listening_socket = PORT_MAP[port];
 	if(listening_socket == NULL || listening_socket->type != SOCKET_LISTENER) {
-		return -1;
+		return NOFILE;
 	}
 
 	client_socket->refcount ++;
@@ -216,9 +217,10 @@ int sys_Connect(Fid_t sock, port_t port, timeout_t timeout)
 	client_socket->refcount--;
 	
 	if(cr->admitted==0) {
-		return -1;
+		return NOFILE;
 	}
-		free(cr);
+	
+	free(cr);
 	
 	return 0;
 }

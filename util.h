@@ -289,9 +289,9 @@ typedef struct thread_control_block TCB;	/**< @brief Forward declaration */
 typedef struct core_control_block CCB;		/**< @brief Forward declaration */
 typedef struct device_control_block DCB;	/**< @brief Forward declaration */
 typedef struct file_control_block FCB;		/**< @brief Forward declaration */
-typedef struct process_thread_control_block PTCB; 	//new control block to implement multithread proccesses
-typedef struct socket_control_block SCB;			//new control block to implement sockets
-typedef struct connection_request c_req;			//
+typedef struct process_thread_control_block PTCB; 	/**< @brief Forward declaration */
+typedef struct socket_control_block SCB;			/**< @brief Forward declaration */
+typedef struct connection_request c_req;			/**< @brief Forward declaration */
 
 /** @brief A convenience typedef */
 typedef struct resource_list_node * rlnode_ptr;
