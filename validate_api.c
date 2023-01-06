@@ -1840,7 +1840,6 @@ BOOT_TEST(test_accept_reusable,
 	ASSERT(Listen(lsock)==0);
 	uint n = MAX_FILEID/2 - 1;
 	Fid_t cli[n], srv[n];
-
 	for(uint i=0;i<n;i++) {
 		cli[i] = Socket(NOPORT);
 		connect_sockets(cli[i], lsock, srv+i, 100);

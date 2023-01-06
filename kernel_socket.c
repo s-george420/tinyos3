@@ -158,13 +158,14 @@ Fid_t sys_Accept(Fid_t lsock)
 
 
 	cr->admitted = 1;
-	kernel_signal(&(cr->connected_cv));
 
 	listening_socket->refcount--;
 
 	if (listening_socket->refcount < 0) {
 		free(listening_socket);
 	}
+	kernel_signal(&(cr->connected_cv));
+
 
 	return 0;
 }
@@ -190,18 +191,17 @@ int sys_Connect(Fid_t sock, port_t port, timeout_t timeout)
 
 	SCB* client_socket = fcb->streamobj;
 
-	
-	
-	if(client_socket == NULL || client_socket->type != SOCKET_UNBOUND) {
+	if(client_socket == NULL || client_socket->type != SOCKET_UNBOUND || port < 1) {
 		return NOFILE;
 	}
+
 
 	SCB* listening_socket = PORT_MAP[port];
 	if(listening_socket == NULL || listening_socket->type != SOCKET_LISTENER) {
 		return NOFILE;
 	}
 
-	client_socket->refcount ++;
+	
 	c_req* cr = xmalloc(sizeof(c_req));
 	cr->admitted = 0;
 	cr->connected_cv = COND_INIT;
@@ -211,16 +211,17 @@ int sys_Connect(Fid_t sock, port_t port, timeout_t timeout)
 	rlist_push_back(&listening_socket->listener_s.queue, &cr->queue_node);
 	kernel_signal(&listening_socket->listener_s.req_available);
 
-	while(cr->admitted==0) {
+	client_socket->refcount ++;
 		kernel_timedwait(&cr->connected_cv, SCHED_IO, timeout);
-	}
-
 	client_socket->refcount--;
+
+	if (client_socket->refcount < 0)
+		free(client_socket);
 	
 	if(cr->admitted==0) {
 		return NOFILE;
 	}
-	
+	rlist_remove(&cr->queue_node);
 	free(cr);
 	
 	return 0;
@@ -312,7 +313,7 @@ int socket_close(void* sock){
     }
 
 	socket->refcount--;
-    if (socket->refcount == 0) {
+    if (socket->refcount < 0) {
 		free(socket);
 	}
    
