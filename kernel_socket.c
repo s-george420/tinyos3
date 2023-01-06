@@ -90,17 +90,18 @@ Fid_t sys_Accept(Fid_t lsock)
 
 	listening_socket->refcount ++;
 	
-	while (is_rlist_empty(&listening_socket->listener_s.queue))
-	{
+	while (is_rlist_empty(&listening_socket->listener_s.queue)) {
 		kernel_wait(&listening_socket->listener_s.req_available, SCHED_IO);
 	}
 
 
 	//check if port is still valid because socket might have been closed
-	if(listening_socket->type == SOCKET_UNBOUND || PORT_MAP[listening_socket->port] == NULL) {
+	if(PORT_MAP[listening_socket->port] == NULL || listening_socket->type == SOCKET_UNBOUND) {
 		listening_socket->refcount--;
-		if (listening_socket->refcount == 0)
+		
+		if (listening_socket->refcount < 0)
 		free(listening_socket);
+		
 		return NOFILE;
 	}
 
@@ -161,11 +162,11 @@ Fid_t sys_Accept(Fid_t lsock)
 
 	listening_socket->refcount--;
 
-	if (listening_socket->refcount == 0) {
+	if (listening_socket->refcount < 0) {
 		free(listening_socket);
 	}
 
-	return NOFILE;
+	return 0;
 }
 
 
