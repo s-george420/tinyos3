@@ -130,10 +130,10 @@ Fid_t sys_Accept(Fid_t lsock)
 
 	//construct pipes
 	pipe_cb* pipe1;
-	FCB* fcb2[2];
+	FCB* fcbInit;
 	pipe1 = xmalloc(sizeof(pipe_cb));
-	pipe1->writer = fcb2[0];
-	pipe1->reader = fcb2[1];
+	pipe1->writer = fcbInit;
+	pipe1->reader = fcbInit;
 	pipe1->has_data = COND_INIT;
 	pipe1->has_space = COND_INIT;
 	pipe1->w_position = 0;
@@ -141,10 +141,9 @@ Fid_t sys_Accept(Fid_t lsock)
 	pipe1->buffer_size = 0;
 
 	pipe_cb* pipe2;
-	FCB* fcb1[2];
 	pipe2 = xmalloc(sizeof(pipe_cb));
-	pipe2->writer = fcb1[0];
-	pipe2->reader = fcb1[1];
+	pipe2->writer = fcbInit;
+	pipe2->reader = fcbInit;
 	pipe2->has_data = COND_INIT;
 	pipe2->has_space = COND_INIT;
 	pipe2->w_position = 0;

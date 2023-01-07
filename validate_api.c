@@ -1914,15 +1914,17 @@ BOOT_TEST(test_accept_unblocks_on_close,
 {
 	Fid_t lsock = Socket(100);
 	ASSERT(lsock!=NOFILE);
+	printf("1\n");
 	ASSERT(Listen(lsock)==0);
-
+	printf("2\n");
 	Tid_t t = CreateThread(unblocking_accept_connection, lsock, NULL);
-
+printf("3\n");
 	/* Here, we just wait some time, (of course, this is technically a race condition :-( */
 	fibo(30);
 	Close(lsock);
-
+printf("4\n");
 	ThreadJoin(t,NULL);
+printf("5\n");
 	return 0;
 }
 
