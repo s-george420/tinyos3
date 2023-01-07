@@ -84,7 +84,7 @@ Fid_t sys_Accept(Fid_t lsock)
 	
 	SCB* listening_socket = fcb->streamobj;
 
-	if(listening_socket == NULL || listening_socket->type != SOCKET_LISTENER || listening_socket->port == NOPORT || PORT_MAP[listening_socket->port] == NULL) {
+	if(listening_socket == NULL || listening_socket->type != SOCKET_LISTENER || PORT_MAP[listening_socket->port] == NULL) {
 		return -1;
 	}
 
@@ -100,14 +100,10 @@ Fid_t sys_Accept(Fid_t lsock)
 		listening_socket->refcount--;
 		
 		if (listening_socket->refcount < 0)
-		free(listening_socket);
+			free(listening_socket);
 		
 		return NOFILE;
 	}
-
-	FCB* server_fcb;
-	Fid_t server_fid;
-
 
 	rlnode* con_node = rlist_pop_front(&listening_socket->listener_s.queue);
   
@@ -115,11 +111,18 @@ Fid_t sys_Accept(Fid_t lsock)
     SCB* client_peer = cr->peer;
   
 
-    server_fid = sys_Socket(listening_socket->port);
+    Fid_t server_fid = sys_Socket(listening_socket->port);
 	
-	server_fcb = get_fcb(server_fid);
+	FCB* server_fcb = get_fcb(server_fid);
 
-  	if(server_fcb == NULL || server_fcb->streamfunc != &socket_file_ops) {
+  	if(server_fid == -1) {
+		
+		listening_socket->refcount--;
+		kernel_signal(&(cr->connected_cv));
+
+		if (listening_socket->refcount < 0) {
+			free(listening_socket);
+		}
 		return NOFILE;	//failure
 	}
 
@@ -127,9 +130,10 @@ Fid_t sys_Accept(Fid_t lsock)
 
 	//construct pipes
 	pipe_cb* pipe1;
+	FCB* fcb2[2];
 	pipe1 = xmalloc(sizeof(pipe_cb));
-	pipe1->writer = server_peer->fcb;
-	pipe1->reader = client_peer->fcb;
+	pipe1->writer = fcb2[0];
+	pipe1->reader = fcb2[1];
 	pipe1->has_data = COND_INIT;
 	pipe1->has_space = COND_INIT;
 	pipe1->w_position = 0;
@@ -137,24 +141,25 @@ Fid_t sys_Accept(Fid_t lsock)
 	pipe1->buffer_size = 0;
 
 	pipe_cb* pipe2;
+	FCB* fcb1[2];
 	pipe2 = xmalloc(sizeof(pipe_cb));
-	pipe2->writer = server_peer->fcb;
-	pipe2->reader = client_peer->fcb;
+	pipe2->writer = fcb1[0];
+	pipe2->reader = fcb1[1];
 	pipe2->has_data = COND_INIT;
 	pipe2->has_space = COND_INIT;
 	pipe2->w_position = 0;
 	pipe2->r_position = 0;
 	pipe2->buffer_size = 0;
 
-	client_peer->type = SOCKET_PEER;
-	client_peer->peer_s.write_pipe = pipe1;
-	client_peer->peer_s.read_pipe = pipe2;
-	client_peer->peer_s.peer = server_peer;
-
 	server_peer->type = SOCKET_PEER;
 	server_peer->peer_s.write_pipe = pipe2;
 	server_peer->peer_s.read_pipe = pipe1;
 	server_peer->peer_s.peer = client_peer;
+
+	client_peer->type = SOCKET_PEER;
+	client_peer->peer_s.write_pipe = pipe1;
+	client_peer->peer_s.read_pipe = pipe2;
+	client_peer->peer_s.peer = server_peer;
 
 
 	cr->admitted = 1;
@@ -167,7 +172,7 @@ Fid_t sys_Accept(Fid_t lsock)
 	kernel_signal(&(cr->connected_cv));
 
 
-	return 0;
+	return server_fid;
 }
 
 
@@ -212,15 +217,18 @@ int sys_Connect(Fid_t sock, port_t port, timeout_t timeout)
 	kernel_signal(&listening_socket->listener_s.req_available);
 
 	client_socket->refcount ++;
-		kernel_timedwait(&cr->connected_cv, SCHED_IO, timeout);
+        kernel_timedwait(&(cr->connected_cv), SCHED_IO, timeout);
 	client_socket->refcount--;
 
 	if (client_socket->refcount < 0)
 		free(client_socket);
 	
 	if(cr->admitted==0) {
+		rlist_remove(&cr->queue_node);
+		free(cr);
 		return NOFILE;
 	}
+	
 	rlist_remove(&cr->queue_node);
 	free(cr);
 	
@@ -228,7 +236,7 @@ int sys_Connect(Fid_t sock, port_t port, timeout_t timeout)
 }
 
 
-int sys_ShutDown(Fid_t sock, shutdown_mode how)
+int sys_ShutDown(Fid_t sock, shutdown_mode mode)
 {
 	FCB* fcb = get_fcb(sock);
 	if(fcb == NULL) {
@@ -237,7 +245,7 @@ int sys_ShutDown(Fid_t sock, shutdown_mode how)
 
 	SCB* socket = fcb->streamobj;
 	
-	switch(how)
+	switch(mode)
    	{
     	case SHUTDOWN_READ:
 			pipe_reader_close(socket->peer_s.read_pipe);
@@ -250,11 +258,10 @@ int sys_ShutDown(Fid_t sock, shutdown_mode how)
     		break;
 		
 		case SHUTDOWN_BOTH:	
-			pipe_reader_close(socket->peer_s.write_pipe);
-			socket->peer_s.read_pipe = NULL;
-			
-			pipe_writer_close(socket->peer_s.write_pipe);
-			socket->peer_s.write_pipe = NULL;
+            pipe_writer_close(socket->peer_s.write_pipe);
+            pipe_reader_close(socket->peer_s.read_pipe);
+            socket->peer_s.write_pipe = NULL;
+            socket->peer_s.read_pipe = NULL;
 			break;
     
    // default:
