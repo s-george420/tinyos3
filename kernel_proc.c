@@ -368,3 +368,69 @@ Fid_t sys_OpenInfo()
   
 	return fid;
 }
+
+int procinfo_read(void* _procinfo_cb, char* buf, unsigned int size)
+{
+  //cast
+  procinfo_cb* proc_cb = (procinfo_cb*) _procinfo_cb;
+
+  if(proc_cb==NULL){
+    return -1;
+  }
+
+  while(proc_cb->pcb_cursor < MAX_PROC && PT[proc_cb->pcb_cursor].pstate == FREE) {
+    proc_cb->pcb_cursor++;
+  }
+  
+  if(proc_cb->pcb_cursor == MAX_PROC) {
+    return 0;
+  }
+
+  procinfo* proc_info = proc_cb -> info;
+  proc_info = xmalloc(sizeof(procinfo));
+
+  PCB tmp_pcb = PT[proc_cb->pcb_cursor];
+  
+
+  proc_info->pid = get_pid(&PT[proc_cb->pcb_cursor]);
+  proc_info->ppid = get_pid(tmp_pcb.parent);
+
+  if(tmp_pcb.pstate == ZOMBIE){
+    proc_info->alive = 0;
+  }
+  else{
+    proc_info->alive = 1;
+  }
+
+  proc_info->thread_count = tmp_pcb.thread_count;
+  proc_info->main_task = tmp_pcb.main_task;
+  proc_info->argl = tmp_pcb.argl;
+
+  if(tmp_pcb.argl < PROCINFO_MAX_ARGS_SIZE) {
+    memcpy(proc_info->args, tmp_pcb.args, tmp_pcb.argl);
+  }
+  else {
+    memcpy(proc_info->args, tmp_pcb.args, PROCINFO_MAX_ARGS_SIZE);
+  }
+ 
+  memcpy(buf, proc_info, size);
+
+  free(proc_info);
+
+  proc_cb->pcb_cursor++;   
+  
+  return size;
+}
+
+int procinfo_close(void* proccb){
+  //cast
+  procinfo_cb* proc_cb = (procinfo_cb*) proccb;
+
+  if(proc_cb == NULL){
+    return -1;
+  }
+
+  free(proc_cb);
+
+  return 0;
+}
