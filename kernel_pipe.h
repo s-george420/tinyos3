@@ -10,11 +10,9 @@ typedef struct pipe_control_block {
     CondVar has_space; /* For blocking writer if no space is available 
     */
     CondVar has_data; /* For blocking reader until data are available */
-    int w_position, r_position; /* write, read position in buffer 
-    (it depends on your implementation of bounded buffer, i.e. alternatively 
-    pointers can be used)*/
+    int w_position, r_position; /* write, read position in buffer */
 
-    int buffer_size; 
+    int buffer_size; /*how many bytes of the bufer are written*/
 
     char BUFFER[PIPE_BUFFER_SIZE]; /*bounded (cyclic) byte buffer 
     */

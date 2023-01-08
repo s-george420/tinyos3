@@ -48,12 +48,8 @@ int sys_Listen(Fid_t sock)
 	if(fcb == NULL) {
 		return -1;
 	}
-	/*
-		- the file id is not legal
-		- the socket is not bound to a port
-		- the port bound to the socket is occupied by another listener
-		- the socket has already been initialized
-	*/
+
+
 	SCB* socket = fcb->streamobj;
 	if(socket == NULL || socket->port == NOPORT || PORT_MAP[(int)(socket->port)] != NULL || socket->type != SOCKET_UNBOUND) {
 		return -1;
@@ -71,11 +67,6 @@ int sys_Listen(Fid_t sock)
 
 Fid_t sys_Accept(Fid_t lsock)
 {
-/*     - the file id is not legal
-	   - the file id is not initialized by @c Listen()
-	   - the available file ids for the process are exhausted
-	   - while waiting, the listening socket @c lsock was closed
-*/
 
 	FCB* fcb = get_fcb(lsock);
 	if(fcb == NULL) {
@@ -177,11 +168,6 @@ Fid_t sys_Accept(Fid_t lsock)
 
 int sys_Connect(Fid_t sock, port_t port, timeout_t timeout)
 {
-	/*- the file id @c sock is not legal (i.e., an unconnected, non-listening socket)
-	   - the given port is illegal.
-	   - the port does not have a listening socket bound to it by @c Listen.
-	   - the timeout has expired without a successful connection.
-	*/
 	//the given port is illegal
 	if(port <= NOPORT || port > MAX_PORT) {
 		return NOFILE;

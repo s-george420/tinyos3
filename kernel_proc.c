@@ -344,9 +344,27 @@ void sys_Exit(int exitval)
   sys_ThreadExit(exitval);
 }
 
-
+static file_ops procinfo_file_ops = {
+  .Open = NULL,
+  .Read = procinfo_read,
+  .Write = NULL,
+  .Close = procinfo_close
+};
 
 Fid_t sys_OpenInfo()
 {
-	return NOFILE;
+  Fid_t fid;
+  FCB* fcb;
+
+  if(FCB_reserve(1, &fid, &fcb) == 0) {
+    return -1;
+  }
+
+  procinfo_cb * proc_cb = (procinfo_cb*)xmalloc(sizeof(procinfo_cb));
+
+  proc_cb->pcb_cursor = 0;
+  fcb->streamobj = proc_cb;
+  fcb->streamfunc = &procinfo_file_ops;
+  
+	return fid;
 }

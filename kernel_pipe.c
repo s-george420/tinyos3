@@ -63,19 +63,26 @@ int sys_Pipe(pipe_t* pipe)
 }
 int pipe_write(void* pipecb_t, const char *buf, unsigned int n)
 {
+	//cast to get the pipe control block
 	pipe_cb* pipe = (pipe_cb*) pipecb_t;
+	
+	//writer and reader must not be NULL
 	if(pipe->reader == NULL || pipe->writer == NULL) {
 		return -1;
 	}
 	int i=0;
 	for(i=0; i<n; i++) {
+		//if buffer is full we wait
 		while(pipe->reader!=NULL && pipe->buffer_size==PIPE_BUFFER_SIZE) {
+			//kernel broadcast since there is data to be read and writer can't write
 			kernel_broadcast(&pipe->has_data);
 			kernel_wait(&pipe->has_space, SCHED_PIPE);
 		}
-
+		//write byte at position i
 		pipe->BUFFER[pipe->w_position] = buf[i];
+		//increase w_position by 1
 		pipe->w_position = (pipe->w_position+1)%PIPE_BUFFER_SIZE;
+		//buffer size increases
 		pipe->buffer_size++;
 	}
 
@@ -85,27 +92,32 @@ int pipe_write(void* pipecb_t, const char *buf, unsigned int n)
 
 int pipe_read(void* pipecb_t, char *buf, unsigned int n)
 {
+	//cast to get the pipe control block
 	pipe_cb* pipe = (pipe_cb*) pipecb_t;
 
 	if(pipe->reader == NULL) {
 		return -1;
 	}
+	//if read position is the same as the write position then there is nothing to read
 	if(pipe->writer == NULL && pipe->r_position==pipe->w_position) {
 		return 0;
 	}
+	
 	int i=0;
 	for(i=0; i<n; i++) {
 		while(pipe->writer!=NULL && pipe->buffer_size==0) {
 			kernel_broadcast(&pipe->has_space);
 			kernel_wait(&pipe->has_data, SCHED_PIPE);
 		}
-
-		if(pipe->buffer_size == 0) {
-			return i;
+		//writer closed and there is nothing to be read
+		if(pipe->buffer_size == 0 && pipe->writer == NULL) {
+			return i; //success
 		}
-
+		// read from read position of buffer the character and write it on buf at position i
 		buf[i] = pipe->BUFFER[pipe->r_position];
+		//increase read position
 		pipe->r_position = (pipe->r_position+1)%PIPE_BUFFER_SIZE;
+		//decrease pipe buffer size since one character is read
 		pipe->buffer_size--;
 	}
 	kernel_broadcast(&pipe->has_space);
@@ -114,28 +126,27 @@ int pipe_read(void* pipecb_t, char *buf, unsigned int n)
 
 int pipe_writer_close(void* _pipecb)
 {
-
-
+	//cast to get the pipe
 	pipe_cb* pipe = (pipe_cb*)_pipecb;
-
+	//check it is not closed already
 	if(pipe==NULL || pipe->writer==NULL){
 		return -1;
 	}
-
+	//close the writer
 	pipe->writer = NULL;
 
 	return 0;
 }
 
 int pipe_reader_close(void* _pipecb)
-{
+{	//cast to get the pipe
 	pipe_cb* pipe = (pipe_cb*)_pipecb;
-
+	//check that it is not closed already
 	if(pipe==NULL || pipe->reader==NULL) {
 		return -1;
 	}
 
-
+	//close the reader
 	pipe->reader = NULL;
 
 	return 0;

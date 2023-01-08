@@ -80,6 +80,16 @@ typedef struct process_thread_control_block {
 } PTCB;
 
 
+typedef struct process_info_control_block {
+  procinfo* info;
+  int pcb_cursor;
+} procinfo_cb;
+
+
+//SYSTEM INFO
+int procinfo_read(void* procinfo_cb, char* buf, unsigned int size);
+int procinfo_close(void* proccb);
+
 /**
   @brief Initialize the process table.
 
