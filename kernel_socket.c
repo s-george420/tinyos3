@@ -18,13 +18,14 @@ static file_ops socket_file_ops = {
 
 Fid_t sys_Socket(port_t port)
 {
+	//port has to be between limits. NOPORT is accepted
 	if(port < NOPORT || port > MAX_PORT){
 		return NOFILE;
 	}
 
 	FCB* fcb;
 	Fid_t fid;
-
+	//reserve one FCB and one fid
 	if(FCB_reserve(1,&fid,&fcb) == 0){
 		return NOFILE;
 	}
@@ -32,9 +33,8 @@ Fid_t sys_Socket(port_t port)
 	SCB* new_socket_cb = xmalloc(sizeof(SCB));
 	new_socket_cb->refcount = 0;
 	new_socket_cb->fcb = fcb;
-	new_socket_cb->type = SOCKET_UNBOUND;
+	new_socket_cb->type = SOCKET_UNBOUND; //the default type is SOCKET_UNBOUND
 	new_socket_cb->port = port;
-	//rlnode_init(&new_socket_cb->unbound_s.unbound_socket, NULL);
   	fcb->streamobj = new_socket_cb;
   	fcb->streamfunc = &socket_file_ops;
 	return fid;
@@ -44,20 +44,21 @@ Fid_t sys_Socket(port_t port)
 
 int sys_Listen(Fid_t sock)
 {
+	//get fcb from the fid
 	FCB* fcb = get_fcb(sock);
 	if(fcb == NULL) {
 		return -1;
 	}
 
-
+	//get the socket and make sure that it is unbound and it is on a valid port
 	SCB* socket = fcb->streamobj;
 	if(socket == NULL || socket->port == NOPORT || PORT_MAP[(int)(socket->port)] != NULL || socket->type != SOCKET_UNBOUND) {
 		return -1;
 	}
-		
+	//place socket on the port and make the socket a listener	
 	PORT_MAP[(int)(socket->port)] = socket;
 	socket->type = SOCKET_LISTENER;
-	// initialize queue
+	// initialize queue and cond var
 	rlnode_init(&socket->listener_s.queue, NULL); 
 	socket->listener_s.req_available = COND_INIT;
 	
@@ -67,20 +68,20 @@ int sys_Listen(Fid_t sock)
 
 Fid_t sys_Accept(Fid_t lsock)
 {
-
+	//get the fcb of the listening socket
 	FCB* fcb = get_fcb(lsock);
 	if(fcb == NULL) {
 		return -1;
 	}
-	
+	//get the listening socket control block from the fcb
 	SCB* listening_socket = fcb->streamobj;
-
-	if(listening_socket == NULL || listening_socket->type != SOCKET_LISTENER || PORT_MAP[listening_socket->port] == NULL) {
+	//check that the socket is a listener and that the port is occupied
+	if(listening_socket == NULL || listening_socket->type != SOCKET_LISTENER || PORT_MAP[listening_socket->port] != listening_socket) {
 		return -1;
 	}
-
+	//increase refcount
 	listening_socket->refcount ++;
-	
+	// wait for request 
 	while (is_rlist_empty(&listening_socket->listener_s.queue)) {
 		kernel_wait(&listening_socket->listener_s.req_available, SCHED_IO);
 	}
@@ -95,15 +96,16 @@ Fid_t sys_Accept(Fid_t lsock)
 		
 		return NOFILE;
 	}
-
+	//get the received request 
 	rlnode* con_node = rlist_pop_front(&listening_socket->listener_s.queue);
-  
+	//find the client peer socket from the request
     c_req* cr = con_node->cr;
     SCB* client_peer = cr->peer;
   
-
+	//get an fid for this port
     Fid_t server_fid = sys_Socket(listening_socket->port);
 	
+	//make
 	FCB* server_fcb = get_fcb(server_fid);
 
   	if(server_fid == -1) {
@@ -266,7 +268,7 @@ int sys_ShutDown(Fid_t sock, shutdown_mode mode)
 		return pipe_read(pipe, buf, size); 
 	}
 
-	int socket_write(void* sock, char* buf, unsigned int size) 
+	int socket_write(void* sock, const char* buf, unsigned int size) 
 	{
 		SCB* socket = (SCB*) sock;
 		if(socket == NULL || socket->type != SOCKET_PEER || socket->peer_s.write_pipe == NULL)
