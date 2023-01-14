@@ -82,7 +82,7 @@ Fid_t sys_Accept(Fid_t lsock)
 	//increase refcount
 	listening_socket->refcount ++;
 	// wait for request 
-	while (is_rlist_empty(&listening_socket->listener_s.queue)) {
+	while (is_rlist_empty(&listening_socket->listener_s.queue) && PORT_MAP[listening_socket->port] != NULL) {
 		kernel_wait(&listening_socket->listener_s.req_available, SCHED_IO);
 	}
 
